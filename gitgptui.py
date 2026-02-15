@@ -1,4 +1,3 @@
-import base64
 import streamlit as st
 import streamlit.components.v1 as components
 import os
@@ -33,8 +32,12 @@ html, body, [class*="css"] {
 
 /* ---- Hide Streamlit defaults ---- */
 #MainMenu {visibility: hidden;}
-header {visibility: hidden;}
 footer {visibility: hidden;}
+/* Keep header visible so sidebar toggle button works */
+header[data-testid="stHeader"] {
+    background: transparent !important;
+    backdrop-filter: none !important;
+}
 
 /* ---- Sidebar ---- */
 section[data-testid="stSidebar"] {
@@ -296,6 +299,45 @@ section[data-testid="stSidebar"] .stMarkdown h3 {
 )
 
 # ---------------------------------------------------------------------------
+# Donate dialog (native Streamlit modal)
+# ---------------------------------------------------------------------------
+
+@st.dialog("☕ Buy Me a Coffee")
+def show_donate_dialog():
+    st.markdown(
+        "<div style='text-align:center; font-size:2.5rem;'>☕💖</div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<h3 style='text-align:center; margin:0;'>Thank You So Much!</h3>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<p style='text-align:center; color:#8888aa; font-size:0.9rem; line-height:1.6;'>"
+        "I'm truly grateful that you're considering supporting my work.<br>"
+        "Every small contribution fuels late-night coding sessions "
+        "and keeps this project alive. You're amazing! 🙏</p>",
+        unsafe_allow_html=True,
+    )
+
+    qr_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "qr.jpeg")
+    if os.path.exists(qr_path):
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.image(qr_path, caption="Scan with any UPI app to donate", width=220)
+    else:
+        st.warning("QR code image not found at assets/qr.jpeg")
+
+    st.markdown(
+        "<p style='text-align:center; font-size:0.75rem; color:#667eea; font-weight:500;'>"
+        "Thank you for your generosity! 💜</p>",
+        unsafe_allow_html=True,
+    )
+
+    if st.button("Close", use_container_width=True):
+        st.rerun()
+
+# ---------------------------------------------------------------------------
 # Session state
 # ---------------------------------------------------------------------------
 
@@ -455,12 +497,8 @@ with st.sidebar:
     # ---- Buy Me a Coffee ----
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
-    if "show_donate" not in st.session_state:
-        st.session_state.show_donate = False
-
     if st.button("☕ Buy Me a Coffee", use_container_width=True):
-        st.session_state.show_donate = True
-        st.rerun()
+        show_donate_dialog()
 
 # ---------------------------------------------------------------------------
 # Main tabs
@@ -694,86 +732,7 @@ Swift, Kotlin, Dart, Scala, SQL, HTML/CSS, YAML, JSON, Dockerfile, Terraform, an
 """
     )
 
-# ---------------------------------------------------------------------------
-# Donate Dialog
-# ---------------------------------------------------------------------------
 
-if st.session_state.get("show_donate", False):
-    # Load QR image as base64
-    qr_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "qr.jpeg")
-    with open(qr_path, "rb") as f:
-        qr_b64 = base64.b64encode(f.read()).decode()
-
-    components.html(
-        f"""
-        <style>
-            body {{ margin: 0; padding: 0; background: transparent; }}
-            .donate-overlay {{
-                position: fixed;
-                top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(0,0,0,0.7);
-                backdrop-filter: blur(8px);
-                z-index: 9999;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }}
-            .donate-card {{
-                background: linear-gradient(145deg, #1a1a2e, #16213e);
-                border: 1px solid rgba(102,126,234,0.3);
-                border-radius: 20px;
-                padding: 2rem 2.5rem;
-                text-align: center;
-                max-width: 380px;
-                width: 90%;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(102,126,234,0.1);
-                animation: donateSlideIn 0.3s ease-out;
-                font-family: 'Inter', -apple-system, sans-serif;
-            }}
-            @keyframes donateSlideIn {{
-                from {{ opacity: 0; transform: scale(0.9) translateY(20px); }}
-                to {{ opacity: 1; transform: scale(1) translateY(0); }}
-            }}
-            .donate-emoji {{ font-size: 2.5rem; margin-bottom: 0.5rem; }}
-            .donate-title {{ font-size: 1.3rem; font-weight: 700; color: #e0e0ff; margin-bottom: 0.3rem; }}
-            .donate-msg {{ font-size: 0.85rem; color: #8888aa; margin-bottom: 1.2rem; line-height: 1.5; }}
-            .donate-qr {{ border-radius: 12px; border: 2px solid rgba(102,126,234,0.3); max-width: 220px; margin: 0 auto 1rem auto; display: block; }}
-            .donate-thanks {{ font-size: 0.75rem; color: #667eea; font-weight: 500; }}
-            .donate-close {{
-                margin-top: 1rem;
-                background: rgba(255,255,255,0.08);
-                border: 1px solid rgba(255,255,255,0.15);
-                color: #c0c0d8;
-                border-radius: 8px;
-                padding: 8px 28px;
-                font-size: 0.8rem;
-                cursor: pointer;
-                transition: all 0.2s;
-            }}
-            .donate-close:hover {{ background: rgba(255,255,255,0.15); }}
-        </style>
-        <div class="donate-overlay" id="donate-overlay" onclick="
-            if(event.target === this) {{ this.style.display='none'; }}
-        ">
-            <div class="donate-card">
-                <div class="donate-emoji">\u2615\U0001f496</div>
-                <div class="donate-title">Thank You So Much!</div>
-                <div class="donate-msg">
-                    I'm truly grateful that you're considering supporting my work.<br>
-                    Every small contribution fuels late-night coding sessions<br>
-                    and keeps this project alive. You're amazing! \U0001f64f
-                </div>
-                <img class="donate-qr" src="data:image/jpeg;base64,{qr_b64}" alt="Donate QR Code" />
-                <div class="donate-thanks">Scan with any UPI app to donate</div>
-                <button class="donate-close" onclick="
-                    document.getElementById('donate-overlay').style.display='none';
-                ">Close</button>
-            </div>
-        </div>
-        """,
-        height=700,
-    )
-    st.session_state.show_donate = False
 
 # ---------------------------------------------------------------------------
 # Footer
