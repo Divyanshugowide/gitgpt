@@ -1,3 +1,4 @@
+import base64
 import streamlit as st
 import streamlit.components.v1 as components
 import os
@@ -289,6 +290,74 @@ section[data-testid="stSidebar"] .stMarkdown h3 {
     letter-spacing: 1px;
     text-transform: uppercase;
 }
+
+/* ---- Donate Dialog ---- */
+.donate-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.donate-card {
+    background: linear-gradient(145deg, #1a1a2e, #16213e);
+    border: 1px solid rgba(102,126,234,0.3);
+    border-radius: 20px;
+    padding: 2rem 2.5rem;
+    text-align: center;
+    max-width: 380px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(102,126,234,0.1);
+    animation: donateSlideIn 0.3s ease-out;
+}
+@keyframes donateSlideIn {
+    from { opacity: 0; transform: scale(0.9) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.donate-emoji {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+.donate-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #e0e0ff;
+    margin-bottom: 0.3rem;
+}
+.donate-msg {
+    font-size: 0.85rem;
+    color: #8888aa;
+    margin-bottom: 1.2rem;
+    line-height: 1.5;
+}
+.donate-qr {
+    border-radius: 12px;
+    border: 2px solid rgba(102,126,234,0.3);
+    max-width: 220px;
+    margin: 0 auto 1rem auto;
+}
+.donate-thanks {
+    font-size: 0.75rem;
+    color: #667eea;
+    font-weight: 500;
+}
+.donate-close {
+    margin-top: 1rem;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #c0c0d8;
+    border-radius: 8px;
+    padding: 6px 24px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.donate-close:hover {
+    background: rgba(255,255,255,0.15);
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -340,13 +409,6 @@ with st.sidebar:
             <div class="sidebar-brand-sub">Repository Intelligence</div>
         </div>
         """,
-        unsafe_allow_html=True,
-    )
-
-    # Provider pill
-    provider_name = agent.provider_display
-    st.markdown(
-        f'<div class="provider-pill"><span class="provider-dot"></span>{provider_name}</div>',
         unsafe_allow_html=True,
     )
 
@@ -456,6 +518,16 @@ with st.sidebar:
         st.session_state.diagram_result = None
         st.session_state.chat_history = []
         st.session_state.agent = GitGPTAgent()
+        st.rerun()
+
+    # ---- Buy Me a Coffee ----
+    st.markdown("<br>" * 2, unsafe_allow_html=True)
+
+    if "show_donate" not in st.session_state:
+        st.session_state.show_donate = False
+
+    if st.button("☕ Buy Me a Coffee", use_container_width=True):
+        st.session_state.show_donate = True
         st.rerun()
 
 # ---------------------------------------------------------------------------
@@ -691,14 +763,51 @@ Swift, Kotlin, Dart, Scala, SQL, HTML/CSS, YAML, JSON, Dockerfile, Terraform, an
     )
 
 # ---------------------------------------------------------------------------
+# Donate Dialog
+# ---------------------------------------------------------------------------
+
+if st.session_state.get("show_donate", False):
+    # Load QR image as base64
+    qr_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "qr.jpeg")
+    with open(qr_path, "rb") as f:
+        qr_b64 = base64.b64encode(f.read()).decode()
+
+    st.markdown(
+        f"""
+        <div class="donate-overlay" id="donate-overlay" onclick="
+            if(event.target === this) {{
+                this.style.display='none';
+            }}
+        ">
+            <div class="donate-card">
+                <div class="donate-emoji">☕💖</div>
+                <div class="donate-title">Thank You So Much!</div>
+                <div class="donate-msg">
+                    I'm truly grateful that you're considering supporting my work.<br>
+                    Every small contribution fuels late-night coding sessions<br>
+                    and keeps this project alive. You're amazing! 🙏
+                </div>
+                <img class="donate-qr" src="data:image/jpeg;base64,{qr_b64}" alt="Donate QR Code" />
+                <div class="donate-thanks">Scan with any UPI app to donate</div>
+                <button class="donate-close" onclick="
+                    document.getElementById('donate-overlay').style.display='none';
+                ">Close</button>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.session_state.show_donate = False
+
+# ---------------------------------------------------------------------------
 # Footer
 # ---------------------------------------------------------------------------
 
 st.markdown(
-    f"""
+    """
     <div class="pro-footer">
         <div class="pro-footer-text">
-            Powered by <strong>{agent.provider_display}</strong> ·
+            Built with ❤️ by <a href="https://github.com/Divyanshugowide" target="_blank">Divyanshu</a> ·
             <a href="https://github.com/Divyanshugowide/gitgpt" target="_blank">GitHub</a>
         </div>
         <div class="pro-footer-brand">GitGPT v1.0</div>
