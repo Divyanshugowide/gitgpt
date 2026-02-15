@@ -290,74 +290,6 @@ section[data-testid="stSidebar"] .stMarkdown h3 {
     letter-spacing: 1px;
     text-transform: uppercase;
 }
-
-/* ---- Donate Dialog ---- */
-.donate-overlay {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.7);
-    backdrop-filter: blur(8px);
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.donate-card {
-    background: linear-gradient(145deg, #1a1a2e, #16213e);
-    border: 1px solid rgba(102,126,234,0.3);
-    border-radius: 20px;
-    padding: 2rem 2.5rem;
-    text-align: center;
-    max-width: 380px;
-    width: 90%;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(102,126,234,0.1);
-    animation: donateSlideIn 0.3s ease-out;
-}
-@keyframes donateSlideIn {
-    from { opacity: 0; transform: scale(0.9) translateY(20px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
-}
-.donate-emoji {
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
-}
-.donate-title {
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: #e0e0ff;
-    margin-bottom: 0.3rem;
-}
-.donate-msg {
-    font-size: 0.85rem;
-    color: #8888aa;
-    margin-bottom: 1.2rem;
-    line-height: 1.5;
-}
-.donate-qr {
-    border-radius: 12px;
-    border: 2px solid rgba(102,126,234,0.3);
-    max-width: 220px;
-    margin: 0 auto 1rem auto;
-}
-.donate-thanks {
-    font-size: 0.75rem;
-    color: #667eea;
-    font-weight: 500;
-}
-.donate-close {
-    margin-top: 1rem;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.15);
-    color: #c0c0d8;
-    border-radius: 8px;
-    padding: 6px 24px;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.donate-close:hover {
-    background: rgba(255,255,255,0.15);
-}
 </style>
 """,
     unsafe_allow_html=True,
@@ -772,20 +704,64 @@ if st.session_state.get("show_donate", False):
     with open(qr_path, "rb") as f:
         qr_b64 = base64.b64encode(f.read()).decode()
 
-    st.markdown(
+    components.html(
         f"""
-        <div class="donate-overlay" id="donate-overlay" onclick="
-            if(event.target === this) {{
-                this.style.display='none';
+        <style>
+            body {{ margin: 0; padding: 0; background: transparent; }}
+            .donate-overlay {{
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.7);
+                backdrop-filter: blur(8px);
+                z-index: 9999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }}
+            .donate-card {{
+                background: linear-gradient(145deg, #1a1a2e, #16213e);
+                border: 1px solid rgba(102,126,234,0.3);
+                border-radius: 20px;
+                padding: 2rem 2.5rem;
+                text-align: center;
+                max-width: 380px;
+                width: 90%;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(102,126,234,0.1);
+                animation: donateSlideIn 0.3s ease-out;
+                font-family: 'Inter', -apple-system, sans-serif;
+            }}
+            @keyframes donateSlideIn {{
+                from {{ opacity: 0; transform: scale(0.9) translateY(20px); }}
+                to {{ opacity: 1; transform: scale(1) translateY(0); }}
+            }}
+            .donate-emoji {{ font-size: 2.5rem; margin-bottom: 0.5rem; }}
+            .donate-title {{ font-size: 1.3rem; font-weight: 700; color: #e0e0ff; margin-bottom: 0.3rem; }}
+            .donate-msg {{ font-size: 0.85rem; color: #8888aa; margin-bottom: 1.2rem; line-height: 1.5; }}
+            .donate-qr {{ border-radius: 12px; border: 2px solid rgba(102,126,234,0.3); max-width: 220px; margin: 0 auto 1rem auto; display: block; }}
+            .donate-thanks {{ font-size: 0.75rem; color: #667eea; font-weight: 500; }}
+            .donate-close {{
+                margin-top: 1rem;
+                background: rgba(255,255,255,0.08);
+                border: 1px solid rgba(255,255,255,0.15);
+                color: #c0c0d8;
+                border-radius: 8px;
+                padding: 8px 28px;
+                font-size: 0.8rem;
+                cursor: pointer;
+                transition: all 0.2s;
+            }}
+            .donate-close:hover {{ background: rgba(255,255,255,0.15); }}
+        </style>
+        <div class="donate-overlay" id="donate-overlay" onclick="
+            if(event.target === this) {{ this.style.display='none'; }}
         ">
             <div class="donate-card">
-                <div class="donate-emoji">☕💖</div>
+                <div class="donate-emoji">\u2615\U0001f496</div>
                 <div class="donate-title">Thank You So Much!</div>
                 <div class="donate-msg">
                     I'm truly grateful that you're considering supporting my work.<br>
                     Every small contribution fuels late-night coding sessions<br>
-                    and keeps this project alive. You're amazing! 🙏
+                    and keeps this project alive. You're amazing! \U0001f64f
                 </div>
                 <img class="donate-qr" src="data:image/jpeg;base64,{qr_b64}" alt="Donate QR Code" />
                 <div class="donate-thanks">Scan with any UPI app to donate</div>
@@ -795,7 +771,7 @@ if st.session_state.get("show_donate", False):
             </div>
         </div>
         """,
-        unsafe_allow_html=True,
+        height=700,
     )
     st.session_state.show_donate = False
 
