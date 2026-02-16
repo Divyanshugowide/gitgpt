@@ -284,4 +284,26 @@ This project is open source and available under the [MIT License](LICENSE).
 
 *If you found this useful, give it a ⭐ on GitHub!*
 
+<br><br>
+
+## ☕ Support This Project
+
+<details>
+<summary>
+<strong>☕ Buy Me a Coffee</strong> — Click here to see the QR code 👇
+</summary>
+
+<br>
+
+<div align="center">
+<img src="assets/qr.jpeg" alt="Buy Me a Coffee QR Code" width="300"/>
+
+<br><br>
+
+*Scan the QR code to support this project!*
+
+</div>
+
+</details>
+
 </div>
