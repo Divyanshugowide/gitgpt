@@ -417,25 +417,34 @@ Create a JSON blueprint with this structure:
     "granularity": "high|medium|low",
     "layout": "top-down|left-right|layered",
     "nodes": [
-        {{"id": "snake_case_id", "label": "Display Name", "type": "component|service|database|actor|external|module|class"}}
+        {{"id": "valid_node_id", "label": "Display Name", "type": "component|service|database|actor|external|module|class"}}
     ],
     "edges": [
         {{"from": "source_id", "to": "target_id", "label": "optional description"}}
     ]
 }}
 
-Rules:
+CRITICAL RULES:
+- IDs MUST be snake_case with ONLY letters, numbers, and underscores (a-z, A-Z, 0-9, _)
+- IDs MUST NOT contain spaces, hyphens, dots, or special characters
+- Labels can contain any text but keep them short and descriptive
 - Only include elements actually present in the codebase
-- Use snake_case for IDs, no spaces
 - Keep it readable: 5-20 nodes ideally
 - Identify communication patterns (REST, Kafka, DB queries, imports, etc.)
+- Ensure all edge "from" and "to" IDs match actual node IDs
+
+VALID ID EXAMPLES: api_server, user_service, postgres_db, auth_module
+INVALID IDs: api-server, user.service, postgres db, auth/module
 
 Return ONLY the JSON object.
 """
         try:
             bp_response = self._call_gpt(blueprint_prompt, temperature_override=0.3)
             blueprint = self._parse_json_response(bp_response)
+            # Validate and clean blueprint
+            blueprint = self._validate_blueprint(blueprint)
         except Exception as e:
+            print(f"Warning: Blueprint generation failed ({e}), using fallback")
             blueprint = self._fallback_blueprint()
 
         # Update metadata
@@ -460,6 +469,91 @@ Return ONLY the JSON object.
     # Mermaid generation
     # ------------------------------------------------------------------
 
+    def _validate_blueprint(self, blueprint: Dict) -> Dict:
+        """Validate and clean blueprint data to ensure Mermaid compatibility."""
+        validated = blueprint.copy()
+        
+        # Ensure nodes exist and have valid IDs
+        nodes = validated.get("nodes", [])
+        valid_nodes = []
+        node_id_set = set()
+        
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            
+            # Ensure node has required fields
+            if "id" not in node or "label" not in node:
+                continue
+            
+            # Sanitize ID
+            original_id = str(node.get("id", ""))
+            node["id"] = original_id  # Keep original for now, will be sanitized in _blueprint_to_mermaid
+            
+            # Ensure label is not empty
+            if not node.get("label"):
+                node["label"] = node["id"]
+            
+            # Avoid duplicate IDs
+            if node["id"] in node_id_set:
+                continue
+            
+            node_id_set.add(node["id"])
+            valid_nodes.append(node)
+        
+        validated["nodes"] = valid_nodes
+        
+        # Ensure edges reference valid nodes
+        edges = validated.get("edges", [])
+        valid_edges = []
+        
+        for edge in edges:
+            if not isinstance(edge, dict):
+                continue
+            
+            src = edge.get("from")
+            tgt = edge.get("to")
+            
+            # Skip edges with missing endpoints
+            if not src or not tgt:
+                continue
+            
+            # Only include edges where both nodes exist
+            if src in node_id_set and tgt in node_id_set:
+                valid_edges.append(edge)
+        
+        validated["edges"] = valid_edges
+        
+        return validated
+
+    def _sanitize_node_id(self, node_id: str) -> str:
+        """Sanitize node ID to be Mermaid-compatible (alphanumeric + underscore only)."""
+        # Replace spaces and special chars with underscores
+        sanitized = re.sub(r'[^a-zA-Z0-9_]', '_', str(node_id))
+        # Remove consecutive underscores
+        sanitized = re.sub(r'_+', '_', sanitized)
+        # Remove leading/trailing underscores
+        sanitized = sanitized.strip('_')
+        # Ensure it doesn't start with a number
+        if sanitized and sanitized[0].isdigit():
+            sanitized = 'n_' + sanitized
+        return sanitized or 'node'
+
+    def _escape_mermaid_label(self, label: str) -> str:
+        """Escape special characters in Mermaid labels."""
+        if not label:
+            return ""
+        # Replace quotes with #quot;
+        label = str(label).replace('"', '#quot;')
+        # Remove or replace other problematic characters
+        label = label.replace('<', '&lt;').replace('>', '&gt;')
+        # Replace line breaks
+        label = label.replace('\n', ' ').replace('\r', ' ')
+        # Truncate if too long
+        if len(label) > 100:
+            label = label[:97] + '...'
+        return label
+
     def _blueprint_to_mermaid(self, blueprint: Dict, diagram_type: str) -> str:
         nodes = blueprint.get("nodes", [])
         edges = blueprint.get("edges", [])
@@ -467,20 +561,38 @@ Return ONLY the JSON object.
 
         lines: List[str] = []
 
+        # Create ID mapping for sanitization
+        id_map = {}
+        for node in nodes:
+            original_id = node.get("id", "")
+            sanitized_id = self._sanitize_node_id(original_id)
+            id_map[original_id] = sanitized_id
+
         if diagram_type == "SEQUENCE_DIAGRAM":
             lines.append("sequenceDiagram")
             for edge in edges:
-                label = edge.get("label", "")
-                lines.append(f"    {edge['from']}->>{edge['to']}: {label}")
+                src = id_map.get(edge.get('from'), self._sanitize_node_id(edge.get('from', 'A')))
+                tgt = id_map.get(edge.get('to'), self._sanitize_node_id(edge.get('to', 'B')))
+                label = self._escape_mermaid_label(edge.get("label", ""))
+                lines.append(f"    {src}->>{tgt}: {label}")
             return "\n".join(lines)
 
         if diagram_type == "CLASS_DIAGRAM":
             lines.append("classDiagram")
             for node in nodes:
-                lines.append(f"    class {node['id']} {{\n        {node['label']}\n    }}")
+                nid = id_map.get(node.get("id"), self._sanitize_node_id(node.get("id", "Class")))
+                label = self._escape_mermaid_label(node.get("label", ""))
+                lines.append(f"    class {nid}")
+                if label:
+                    lines.append(f"    {nid} : {label}")
             for edge in edges:
-                label = edge.get("label", "")
-                lines.append(f"    {edge['from']} --> {edge['to']} : {label}")
+                src = id_map.get(edge.get('from'), self._sanitize_node_id(edge.get('from', 'A')))
+                tgt = id_map.get(edge.get('to'), self._sanitize_node_id(edge.get('to', 'B')))
+                label = self._escape_mermaid_label(edge.get("label", ""))
+                if label:
+                    lines.append(f"    {src} --> {tgt} : {label}")
+                else:
+                    lines.append(f"    {src} --> {tgt}")
             return "\n".join(lines)
 
         # Flowchart / Architecture / Data Flow
@@ -494,32 +606,33 @@ Return ONLY the JSON object.
 
         # Nodes with shape by type
         for node in nodes:
-            nid = node["id"]
-            label = node["label"]
+            original_id = node.get("id", "")
+            nid = id_map.get(original_id, self._sanitize_node_id(original_id))
+            label = self._escape_mermaid_label(node.get("label", "Node"))
             ntype = node.get("type", "component")
 
             if ntype == "database":
-                lines.append(f"    {nid}[({label})]")
+                lines.append(f'    {nid}[("{label}")]')
             elif ntype == "external":
-                lines.append(f"    {nid}[/{label}/]")
+                lines.append(f'    {nid}[/"{label}"/]')
             elif ntype == "actor":
-                lines.append(f"    {nid}(({label}))")
+                lines.append(f'    {nid}(("{label}"))')
             elif ntype in ("module", "class"):
-                lines.append(f"    {nid}[{label}]")
+                lines.append(f'    {nid}["{label}"]')
             elif ntype == "service":
-                lines.append(f"    {nid}[{label}]")
+                lines.append(f'    {nid}["{label}"]')
             else:
-                lines.append(f"    {nid}[{label}]")
+                lines.append(f'    {nid}["{label}"]')
 
         # Edges
         for edge in edges:
-            src = edge["from"]
-            tgt = edge["to"]
-            label = edge.get("label", "")
+            src = id_map.get(edge.get('from'), self._sanitize_node_id(edge.get('from', 'A')))
+            tgt = id_map.get(edge.get('to'), self._sanitize_node_id(edge.get('to', 'B')))
+            label = self._escape_mermaid_label(edge.get("label", ""))
             if label:
-                lines.append(f"    {src} -->|{label}| {tgt}")
+                lines.append(f'    {src} -->|"{label}"| {tgt}')
             else:
-                lines.append(f"    {src} --> {tgt}")
+                lines.append(f'    {src} --> {tgt}')
 
         return "\n".join(lines)
 
